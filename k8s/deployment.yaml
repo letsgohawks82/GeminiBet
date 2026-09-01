@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bcfp2-app
+  labels:
+    app: bcfp2-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: bcfp2-app
+  template:
+    metadata:
+      labels:
+        app: bcfp2-app
+    spec:
+      containers:
+        - name: app
+          image: bcfp2-app:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: GEMINI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: bcfp2-secrets
+                  key: gemini-api-key
+            - name: REDIS_URL
+              value: "redis://redis-service:6379"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "200m"
+            limits:
+              memory: "512Mi"
+              cpu: "1000m"
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bcfp2-service
+spec:
+  type: ClusterIP
+  selector:
+    app: bcfp2-app
+  ports:
+    - port: 80
+      targetPort: 3000

@@ -1,0 +1,61 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ main, 'feature/**' ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  validate-and-build:
+    name: Lint, Test & Build Validation
+    runs-on: ubuntu-latest
+    env:
+      NODE_ENV: 'test'
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY || 'ci-test-mock-key' }}
+      REDIS_URL: ${{ secrets.REDIS_URL }}
+      ALLOWED_ORIGINS: ${{ secrets.ALLOWED_ORIGINS || 'http://localhost:5173' }}
+      AI_MAX_RETRIES: ${{ secrets.AI_MAX_RETRIES || '4' }}
+      AI_BASE_DELAY_MS: ${{ secrets.AI_BASE_DELAY_MS || '600' }}
+      AI_MAX_BACKOFF_MS: ${{ secrets.AI_MAX_BACKOFF_MS || '60000' }}
+      AI_CACHE_TTL_SEC: ${{ secrets.AI_CACHE_TTL_SEC || '600' }}
+      AI_CACHE_MAX_ITEMS: ${{ secrets.AI_CACHE_MAX_ITEMS || '250' }}
+      AI_MAX_TOKENS_PER_REQUEST: ${{ secrets.AI_MAX_TOKENS_PER_REQUEST || '3000' }}
+      MODEL_MAX_CONTEXT_TOKENS: ${{ secrets.MODEL_MAX_CONTEXT_TOKENS || '32768' }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Typecheck & Lint
+        run: npm run lint
+
+      - name: Run Unit & Integration Tests
+        run: npm test
+
+      - name: Production Build
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      - name: Verify No Secrets In Client Bundle
+        run: |
+          echo "Scanning dist/ for accidental API keys or client leaks..."
+          if grep -rn "AIzaSy" dist/assets/ 2>/dev/null; then
+            echo "ERROR: Potential Google API key found in client bundle!"
+            exit 1
+          fi
+          if grep -rn "VITE_GEMINI" dist/ 2>/dev/null; then
+            echo "ERROR: VITE_GEMINI secret pattern found in build bundle!"
+            exit 1
+          fi
+          echo "Bundle scan passed: Zero secrets detected in client artifacts."

@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - '3000:3000'
+    environment:
+      NODE_ENV: 'production'
+      GEMINI_API_KEY: '${GEMINI_API_KEY}'
+      REDIS_URL: 'redis://redis:6379'
+      ALLOWED_ORIGINS: 'http://localhost:5173,https://app.bcftoys.com'
+      AI_MAX_RETRIES: '4'
+      AI_BASE_DELAY_MS: '600'
+      AI_MAX_BACKOFF_MS: '60000'
+      AI_CACHE_TTL_SEC: '600'
+      AI_CACHE_MAX_ITEMS: '250'
+      AI_MAX_TOKENS_PER_REQUEST: '3000'
+      MODEL_MAX_CONTEXT_TOKENS: '32768'
+    depends_on:
+      - redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health | grep -q 'ok' || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  redis_data:

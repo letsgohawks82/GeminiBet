@@ -1,0 +1,7 @@
+{
+  "name": "CFBD Quantitative Pricing Terminal & Calibration Gate",
+  "description": "Validated college football pricing terminal consuming external model prices beside market consensus, featuring strict walk-forward calibration gate, Brier score and log loss benchmarks against de-vigged closing lines, bootstrap lambda market blend weights, and CFBD licensed SP+/SRS/Elo ratings.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
